@@ -1,0 +1,11 @@
+**/.venv/
+**/.virtualenv/
+**/.idea/
+**/.git
+**/target/
+**/cpp/
+**/rust/
+**/build/
+**/__pycache__/
+**/.tmp_proto/
+**/.gradle/

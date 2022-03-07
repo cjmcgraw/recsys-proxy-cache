@@ -1,0 +1,79 @@
+plugins {
+    // Apply the application plugin to add support for building a CLI application in Java.
+    id 'application'
+    id 'com.google.protobuf' version '0.8.18'
+    id 'idea'
+}
+
+repositories {
+    maven {
+        url "https://maven-central.storage-download.googleapis.com/maven2/"
+    }
+    mavenCentral()
+    mavenLocal()
+}
+
+sourceCompatibility = 1.17
+targetCompatibility = 1.17
+
+def grpcVersion = "1.44.0"
+def protobufVersion = "3.19.4"
+def protocVersion = protobufVersion
+
+dependencies {
+    protobuf "com.github.cjmcgraw:tensorflow-serving-java:2.8.0"
+    compileOnly "org.apache.tomcat:annotations-api:6.0.53"
+
+    implementation 'org.slf4j:slf4j-api:1.7.30'
+    implementation 'org.slf4j:slf4j-simple:1.7.30'
+
+    implementation "io.grpc:grpc-protobuf:${grpcVersion}"
+    implementation "io.grpc:grpc-stub:${grpcVersion}"
+
+    implementation 'com.github.ben-manes.caffeine:caffeine:3.0.5'
+    implementation 'com.github.ben-manes.caffeine:guava:3.0.5'
+    implementation 'com.github.ben-manes.caffeine:jcache:3.0.5'
+
+    // examples/advanced need this for JsonFormat
+    implementation "com.google.protobuf:protobuf-java-util:${protobufVersion}"
+
+    runtimeOnly "io.grpc:grpc-netty-shaded:${grpcVersion}"
+
+    testImplementation "io.grpc:grpc-testing:${grpcVersion}"
+    testImplementation "junit:junit:4.13.2"
+    testImplementation "org.mockito:mockito-core:3.+"
+    testImplementation "org.mockito:mockito-inline:3.+"
+}
+
+protobuf {
+    protoc { artifact = "com.google.protobuf:protoc:${protocVersion}" }
+    plugins {
+        grpc { artifact = "io.grpc:protoc-gen-grpc-java:${grpcVersion}" }
+    }
+    generateProtoTasks {
+        all()*.plugins { grpc {} }
+    }
+}
+
+sourceSets {
+    main {
+        java {
+            srcDirs 'build/generated/source/proto/main/grpc'
+            srcDirs 'build/generated/source/proto/main/java'
+        }
+    }
+}
+
+startScripts.enabled = false
+
+task appServer(type: CreateStartScripts) {
+    mainClass = 'recsys_proxy_cache.App'
+    applicationName = "recsys-proxy-cache"
+    outputDir = new File(project.buildDir, 'tmp/scripts/' + name)
+    classpath = startScripts.classpath
+}
+
+applicationDistribution.into('bin') {
+    from(appServer)
+    fileMode = 0755
+}

@@ -1,0 +1,65 @@
+version: "3.9"
+
+services:
+
+  recsys_1:
+    build: ./recsys
+    environment:
+      GRPC_VERBOSITY: debug
+      TCP_USER_TIMEOUT: 250
+      MAX_CONNECTION_AGE: 1000
+    networks:
+      recsys_static_network:
+        ipv4_address: "172.21.128.1" 
+
+  recsys_2:
+    build: ./recsys
+    environment:
+      GRPC_VERBOSITY: debug
+      TCP_USER_TIMEOUT: 250
+      MAX_CONNECTION_AGE: 1000
+    networks:
+      recsys_static_network:
+        ipv4_address: "172.21.128.2" 
+
+  recsys_3:
+    build: ./recsys
+    environment:
+      GRPC_VERBOSITY: debug
+      TCP_USER_TIMEOUT: 250
+      MAX_CONNECTION_AGE: 1000
+    networks:
+      recsys_static_network:
+        ipv4_address: "172.21.128.3" 
+
+  lookaside-load-balancer:
+    build: ./lookaside_load_balancer
+    depends_on:
+      - recsys_1
+      - recsys_2
+      - recsys_3
+    networks:
+      recsys_static_network:
+
+  #recsys_proxy_cache:
+  #  build:
+  #    context: ./recsys_proxy_cache/java
+  #  environment:
+  #    RECSYS_PROXY_CACHE_LLB_TARGET: lookaside-load-balancer:80
+  #  depends_on:
+  #    - lookaside-load-balancer
+  #  networks:
+  #    recsys_static_network:
+
+  tests:
+    profiles: [ "docker-compose-run-only" ]
+    build:
+      context: ./tests
+    volumes:
+      - ./tests:/app
+
+networks:
+  recsys_static_network:
+    ipam:
+      config:
+        - subnet: 172.21.0.0/16

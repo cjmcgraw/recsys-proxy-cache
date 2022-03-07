@@ -1,0 +1,25 @@
+{
+
+    "valid_servers": [
+        {
+            "name": "the first test server",
+            "host": "recsys_1",
+            "addr": "172.20.128.1",
+            "port": 50051
+        },
+        {
+            "name": "the second test server",
+            "host": "recsys_2",
+            "addr": "172.20.128.2",
+            "port": 50051
+
+        },
+        {
+            "name": "the third test server",
+            "host": "recsys_3",
+            "addr": "172.20.128.3",
+            "port": 50051
+        }
+    ]
+
+}
