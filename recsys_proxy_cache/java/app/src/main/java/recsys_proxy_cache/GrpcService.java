@@ -112,4 +112,8 @@ class GrpcService extends RecsysProxyCacheGrpc.RecsysProxyCacheImplBase {
             responseObserver.onError(exception);
         }
     }
+
+    static class HttpRequestNameResolver {
+        // TODO: implement name resolver for look-aside load balancer
+    }
 }

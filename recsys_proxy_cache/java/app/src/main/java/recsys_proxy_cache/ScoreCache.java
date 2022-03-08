@@ -64,6 +64,8 @@ public class ScoreCache {
          * fast. We may want to consider another fast hash such as
          * CityHash or FarmHash.
          *
+         * I could only find a 128 murmur. really wanted 128 farmhash.
+         *
          * It is however important that we keep the maximumSize in
          * mind on the cache as well though. Consider the collision
          * probability chance at 100Million keys
@@ -113,9 +115,9 @@ public class ScoreCache {
          *
          * All reads should happen without locking utilizing volatile memory,
          * this means that each individual read will get the most "updated"
-         * key without a lock. But it could be that there are updates waiting
-         * on a lock while a read is being performed, therefore it is out of
-         * date.
+         * key without amortized locking. But it could be that there are updates
+         * waiting on a lock while a read is being performed, therefore it is
+         * out of date.
          *
          * Writes are a very different story though. The ConcurrentHashMap will
          * create a number of locks then lock on each bucket during the put
@@ -135,6 +137,8 @@ public class ScoreCache {
          * and continue processing the insert. This would tie up threads in the service
          * instead. Is it better to silently fall through the cache, or loudly block the
          * service when the cache write is overwhelmed?
+         *
+         * I am now opting to silently fail. May god have mercy on us.
          */
         try {
             insertExecutor.execute(() -> {
@@ -148,6 +152,7 @@ public class ScoreCache {
         } catch (RejectedExecutionException exception) {
             log.error(exception.getMessage());
             log.warn("cache insert has exceeded maximum queue size! Ignoring cache insert/update temporarily");
+            // silent failure
         }
     }
 
