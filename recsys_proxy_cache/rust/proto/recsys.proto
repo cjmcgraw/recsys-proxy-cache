@@ -1,0 +1,30 @@
+syntax = "proto3";
+package recsys;
+
+service RecsysProxyCache {
+    rpc GetScores(ScoreRequest) returns (ScoreResponse);
+}
+
+message Field {
+    string value = 1;
+    string name = 2;
+}
+
+message Item {
+    repeated Field fields = 1;
+}
+
+message Context {
+    repeated Field fields = 1;
+}
+
+message ScoreRequest {
+    repeated Item items = 1;
+    Context context = 2;
+    string model_name = 3;
+    string model_version = 4;
+}
+
+message ScoreResponse {
+    repeated double scores = 1;
+}

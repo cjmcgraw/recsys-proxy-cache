@@ -1,0 +1,19 @@
+[package]
+name = "recsys_proxy_cache"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "rcsys-proxy-cache-server"
+path = "src/server.rs"
+
+[dependencies]
+lfu = "0.2.5"
+lazy_static = "1.4.0"
+rand = "0.8"
+tonic = "0.6"
+prost = "0.9"
+tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
+
+[build-dependencies]
+tonic-build = "0.6"
