@@ -72,7 +72,7 @@ public class ScoreCache {
          * hash collisions are rare. Ideally we'd have it greater than
          * 160bits to force them to be almost non-existent
          *
-         * But we also need to balance this again speed and memory
+         * But we also need to balance this against speed and memory
          * usage in the cache as well.
          */
         var bytes = Hashing
