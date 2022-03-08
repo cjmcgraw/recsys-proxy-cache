@@ -35,6 +35,9 @@ public class ScoreCache {
             .scheduler(Scheduler.systemScheduler())
             .build();
 
+    /*
+     * memory impacted by queue size and threads operatingb
+     */
     private static final BlockingQueue<Runnable> queue = new LinkedBlockingQueue<>(10_000);
     private static final ThreadPoolExecutor insertExecutor = new ThreadPoolExecutor(
             3, 16, 10, TimeUnit.SECONDS, queue, Executors.defaultThreadFactory()

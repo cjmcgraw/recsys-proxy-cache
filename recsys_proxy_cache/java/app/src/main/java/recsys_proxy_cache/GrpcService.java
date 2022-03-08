@@ -36,6 +36,15 @@ class GrpcService extends RecsysProxyCacheGrpc.RecsysProxyCacheImplBase {
         this.scoreCacheBuilder = scoreCacheBuilder;
     }
 
+    @Override
+    public void getScores(ScoreRequest request, StreamObserver<ScoreResponse> responseObserver) {
+        try {
+            getScoresInner(request, responseObserver);
+        } catch (Exception exception) {
+            log.error("unexpected exception thrown during getScores method", exception);
+            responseObserver.onError(exception);
+        }
+    }
     private void getScoresInner(ScoreRequest request, StreamObserver<ScoreResponse> responseObserver) throws StatusException {
         if (request.getItemsCount() <= 0) {
            throw Status
@@ -103,15 +112,6 @@ class GrpcService extends RecsysProxyCacheGrpc.RecsysProxyCacheImplBase {
         newScores.ifPresent(scoreCache::setScores);
     }
 
-    @Override
-    public void getScores(ScoreRequest request, StreamObserver<ScoreResponse> responseObserver) {
-        try {
-            getScoresInner(request, responseObserver);
-        } catch (Exception exception) {
-            log.error("unexpected exception thrown during getScores method", exception);
-            responseObserver.onError(exception);
-        }
-    }
 
     static class HttpRequestNameResolver {
         // TODO: implement name resolver for look-aside load balancer
