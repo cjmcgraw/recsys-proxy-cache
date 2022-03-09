@@ -6,10 +6,11 @@ import com.google.common.collect.Maps;
 import com.google.common.hash.Hashing;
 import com.google.common.primitives.Bytes;
 import com.github.benmanes.caffeine.cache.Cache;
+import com.google.common.primitives.Longs;
+import java.nio.charset.StandardCharsets;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import recsys_proxy_cache.protos.Context;
-import recsys_proxy_cache.protos.Item;
 
 import java.nio.ByteBuffer;
 import java.util.Collection;
@@ -21,7 +22,7 @@ public class ScoreCache {
     /*
      * Shared cache by all threads, backed by concurrent hashmap. See the javadocs for more.
      *
-     * The maximumSize of the cache is a point of interest for the keys. We want to keep the
+     * The maximumSize of the cache is a point of interest in the keys. We want to keep the
      * cache size large enough to catch enough cases of repeat scoring, but small enough to
      * keep memory sufficiently low. The larger the maximumSize the more likely collisions
      * are. So choosing our hash algorithm is critical too.
@@ -30,13 +31,13 @@ public class ScoreCache {
      */
     private static final Cache<ByteBuffer, Double> internalCache = Caffeine
             .newBuilder()
-            .maximumSize(250_000_000)
+            .maximumSize(200_000_000)
             .expireAfterAccess(5, TimeUnit.MINUTES)
             .scheduler(Scheduler.systemScheduler())
             .build();
 
     /*
-     * memory impacted by queue size and threads operatingb
+     * memory impacted by queue size and threads operating
      */
     private static final BlockingQueue<Runnable> queue = new LinkedBlockingQueue<>(10_000);
     private static final ThreadPoolExecutor insertExecutor = new ThreadPoolExecutor(
@@ -50,55 +51,54 @@ public class ScoreCache {
         insertExecutor.shutdown();
     }
 
-    final private byte[] contextBytes;
+    final private byte[] hashedContext;
     private ScoreCache(String modelName, String modelVersion, Context context) {
-        contextBytes = Bytes.concat(
-                modelName.getBytes(),
-                modelVersion.getBytes(),
-                context.toByteArray()
-        );
-    }
-
-    private ByteBuffer getHashKey(Item item) {
-        var itemBytes = item.toByteArray();
+        var nameBytes = modelName.getBytes(StandardCharsets.US_ASCII);
+        var versionBytes = modelVersion.getBytes(StandardCharsets.US_ASCII);
+        var contextBytes = context.toByteArray();
 
         /*
-         * Using murmur3 because its non-cryptographic and generally
-         * fast. We may want to consider another fast hash such as
-         * CityHash or FarmHash.
+         * Using farmfingerprint64 because its non-cryptographic and generally
+         * fast. Preference to usage over murmur3 simply because of known speed.
          *
-         * I could only find a 128 murmur. really wanted 128 farmhash.
+         * We will be appending the item id bytes to the farmfingerprint64 to
+         * reduce has collisions further. Thus producing a 128-bit unique key
          *
          * It is however important that we keep the maximumSize in
          * mind on the cache as well though. Consider the collision
          * probability chance at 100Million keys
          *
-         * Ideally we'd keep the hash size greater than 64 to ensure
-         * hash collisions are rare. Ideally we'd have it greater than
-         * 160bits to force them to be almost non-existent
-         *
          * But we also need to balance this against speed and memory
          * usage in the cache as well.
          */
-        var bytes = Hashing
-                .murmur3_128()
-                .newHasher(contextBytes.length + itemBytes.length)
+        hashedContext = Hashing
+                .farmHashFingerprint64()
+                .newHasher(nameBytes.length + versionBytes.length + contextBytes.length)
+                .putBytes(nameBytes)
+                .putBytes(versionBytes)
                 .putBytes(contextBytes)
-                .putBytes(itemBytes)
                 .hash()
                 .asBytes();
-        return ByteBuffer.wrap(bytes);
     }
 
-    Map<Item, Double> getScores(Collection<Item> items) {
-        var itemLookup = Maps.<ByteBuffer, Item>newHashMapWithExpectedSize(items.size());
+    private ByteBuffer getHashKey(long item) {
+        return ByteBuffer.wrap(
+                Bytes.concat(
+                        hashedContext,
+                        Longs.toByteArray(item)
+                )
+        );
+    }
+
+    Map<Long, Double> getScores(Collection<Long> items) {
+        var itemLookup = Maps.<ByteBuffer, Long>newHashMapWithExpectedSize(items.size());
         for (var item : items) {
             var key = getHashKey(item);
             itemLookup.put(key, item);
         }
 
         var cachedData = internalCache.getAllPresent(itemLookup.keySet());
-        var scoredItems = Maps.<Item, Double>newHashMapWithExpectedSize(cachedData.size());
+        var scoredItems = Maps.<Long, Double>newHashMapWithExpectedSize(cachedData.size());
         for (var entry: cachedData.entrySet()) {
             var item = itemLookup.get(entry.getKey());
             scoredItems.put(item, entry.getValue());
@@ -107,7 +107,7 @@ public class ScoreCache {
         return scoredItems;
     }
 
-    void setScores(Map<Item, Double> scores) {
+    void setScores(Map<Long, Double> scores) {
         /*
          * Currently, we are using caffeine for the implementation
          * of this shared internalCache. Caffeine internally uses a
@@ -132,8 +132,8 @@ public class ScoreCache {
          * With this we will never fully freeze, but instead queue updates that
          * should operate on a thread pool that won't spike heavily.
          *
-         * There is a trade-off with this approach though. Queueing the updates
-         * means that we will silently miss more in the cache. Cache misses mean
+         * There is a trade-off with this approach though. Queueing the update's
+          means that we will silently miss more in the cache. Cache misses mean
          * more fallthrough to underlying systems increasing their load.
          *
          * The other option here is we return the grpc response in the service
@@ -166,7 +166,7 @@ public class ScoreCache {
      *
      * This class is mainly used to build the above classes internal state.
      *
-     * This allows the main classes constructor to be private, and forces
+     * This allows the main classes' constructor to be private, and forces
      * callers to allow injection of a builder, which helps with tests.
      *
      * This pattern was adapted from guava, googles code bases, protobuf

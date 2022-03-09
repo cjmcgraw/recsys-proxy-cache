@@ -11,10 +11,10 @@ public class TestUtils {
     private static final Random rand = new Random(1L);
 
     static class TestData {
-        public List<Item> items;
+        public List<Long> items;
         public List<Double> scores;
-        public Map<Item, Double> proxyRecords;
-        public Map<Item, Double> cacheRecords;
+        public Map<Long, Double> proxyRecords;
+        public Map<Long, Double> cacheRecords;
         public ScoreRequest request;
         public ScoreResponse expected;
     }
@@ -22,7 +22,7 @@ public class TestUtils {
     static TestData generateRandomTestData(int recordsForProxy, int recordsForCache) {
         var request = TestUtils.getTestScoreRequest(recordsForProxy + recordsForCache);
         var items = request.getItemsList();
-        var itemsToScores = Maps.<Item, Double>newHashMapWithExpectedSize(request.getItemsCount());
+        var itemsToScores = Maps.<Long, Double>newHashMapWithExpectedSize(request.getItemsCount());
         for (var item : items) {
             itemsToScores.put(item, rand.nextDouble());
         }
@@ -37,8 +37,8 @@ public class TestUtils {
                 .addAllScores(scores)
                 .build();
 
-        var proxyRecords = Maps.<Item, Double>newHashMapWithExpectedSize(recordsForProxy);
-        var cacheRecords = Maps.<Item, Double>newHashMapWithExpectedSize(recordsForCache);
+        var proxyRecords = Maps.<Long, Double>newHashMapWithExpectedSize(recordsForProxy);
+        var cacheRecords = Maps.<Long, Double>newHashMapWithExpectedSize(recordsForCache);
         for (var entry : itemsToScores.entrySet()) {
             if (proxyRecords.size() < recordsForProxy) {
                 proxyRecords.put(entry.getKey(), entry.getValue());
@@ -91,8 +91,8 @@ public class TestUtils {
                 .build();
     }
 
-    static Map<Item, Double> getRandomScores(int n) {
-        var scores = Maps.<Item, Double>newHashMapWithExpectedSize(n);
+    static Map<Long, Double> getRandomScores(int n) {
+        var scores = Maps.<Long, Double>newHashMapWithExpectedSize(n);
         var randomItems = getRandomItems(n);
         for (var item: randomItems) {
            scores.put(item, rand.nextDouble());
@@ -100,23 +100,10 @@ public class TestUtils {
         return scores;
     }
 
-    static List<Item> getRandomItems(int n) {
-        var items = Lists.<Item>newArrayListWithExpectedSize(n);
-        for (int i = 0; i < n; i++) {
-            items.add(getRandomItem((3)));
-        }
-        return items;
-    }
-
-    static Item getRandomItem(int n) {
-        var item = Item.newBuilder();
-        for(int i = 0; i < n; i++) {
-            item.putFields(
-                    UUID.randomUUID().toString(),
-                    getRandomValues(3)
-            );
-        }
-        return item.build();
+    static List<Long> getRandomItems(int n) {
+        return rand.longs(n)
+                .boxed()
+                .toList();
     }
 
     private static Values getRandomValues(int numberOfRandomFields) {

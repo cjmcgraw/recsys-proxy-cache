@@ -5,9 +5,10 @@ import com.google.common.collect.Sets;
 import io.grpc.Status;
 import io.grpc.StatusException;
 import io.grpc.stub.StreamObserver;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeoutException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import recsys_proxy_cache.protos.Item;
 import recsys_proxy_cache.protos.RecsysProxyCacheGrpc;
 import recsys_proxy_cache.protos.ScoreRequest;
 import recsys_proxy_cache.protos.ScoreResponse;
@@ -45,7 +46,7 @@ class GrpcService extends RecsysProxyCacheGrpc.RecsysProxyCacheImplBase {
             responseObserver.onError(exception);
         }
     }
-    private void getScoresInner(ScoreRequest request, StreamObserver<ScoreResponse> responseObserver) throws StatusException {
+    private void getScoresInner(ScoreRequest request, StreamObserver<ScoreResponse> responseObserver) throws StatusException, ExecutionException, InterruptedException, TimeoutException {
         if (request.getItemsCount() <= 0) {
            throw Status
                    .INVALID_ARGUMENT
@@ -62,12 +63,13 @@ class GrpcService extends RecsysProxyCacheGrpc.RecsysProxyCacheImplBase {
         var recsysProxy = recsysProxyBuilder
                 .withModelName(request.getModelName())
                 .withModelVersion(request.getModelVersion())
+                .withContext(request.getContext())
                 .build();
 
         var itemsToScores = scoreCache.getScores(items);
         items.removeAll(itemsToScores.keySet());
 
-        var newScores = Optional.<Map<Item, Double>>empty();
+        var newScores = Optional.<Map<Long, Double>>empty();
         if (items.size() > 0) {
             newScores = Optional.of(recsysProxy.score(items));
             itemsToScores.putAll(newScores.get());

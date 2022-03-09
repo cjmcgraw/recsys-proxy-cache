@@ -16,17 +16,13 @@ message Values {
     repeated string values = 1;
 }
 
-message Item {
-    map<string, Values> fields = 1;
-}
-
 message Context {
     map<string, Values> fields = 1;
 }
 
 message ScoreRequest {
     // request will correspond to exactly 1 value in the output scores
-    repeated Item items = 1;
+    repeated int64 items = 1;
     Context context = 2;
     string modelName = 3;
     string modelVersion = 4;

@@ -30,6 +30,15 @@ import java.util.logging.Logger;
  * Server that manages startup/shutdown of a {@code Greeter} server.
  */
 public class App {
+    /**
+     * Main launches the server from the command line.
+     */
+    public static void main(String[] args) throws IOException, InterruptedException {
+        final var applicationServer = new App();
+        applicationServer.start();
+        applicationServer.blockUntilShutdown();
+    }
+
     private static final Logger logger = Logger.getLogger(App.class.getName());
     private Server server;
 
@@ -68,12 +77,4 @@ public class App {
         }
     }
 
-    /**
-     * Main launches the server from the command line.
-     */
-    public static void main(String[] args) throws IOException, InterruptedException {
-        final var applicationServer = new App();
-        applicationServer.start();
-        applicationServer.blockUntilShutdown();
-    }
 }
