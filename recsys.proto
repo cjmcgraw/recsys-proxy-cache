@@ -1,28 +1,33 @@
 syntax = "proto3";
 package recsys;
 
+option java_multiple_files = true;
+option java_package = "recsys_proxy_cache.protos";
+
 service RecsysProxyCache {
+    /**
+    Get scores retrieves a score for every item given,
+    from the associated context
+     */
     rpc GetScores(ScoreRequest) returns (ScoreResponse);
 }
 
-message Field {
-    string value = 1;
-    string name = 2;
-}
-
-message Item {
-    repeated Field fields = 1;
+message Values {
+    repeated string values = 1;
 }
 
 message Context {
-    repeated Field fields = 1;
+    map<string, Values> fields = 1;
 }
 
 message ScoreRequest {
-    repeated Item items = 1;
+    // request will correspond to exactly 1 value in the output scores
+    repeated int64 items = 1;
     Context context = 2;
+    string modelName = 3;
 }
 
 message ScoreResponse {
+    // exactly same size as input items
     repeated double scores = 1;
 }

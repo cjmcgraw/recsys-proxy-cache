@@ -23,7 +23,7 @@ function help() {
 }
 
 valid_hosts=(
-    recsys_proxy_cache
+    recsys-proxy-cache
 )
 
 for host in "${valid_hosts[@]}"; do
@@ -64,4 +64,4 @@ done
 
 echo "done!"
 cd src/
-python tests.py
+python -m pytest
