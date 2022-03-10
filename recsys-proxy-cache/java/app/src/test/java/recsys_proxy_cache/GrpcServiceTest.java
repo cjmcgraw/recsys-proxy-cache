@@ -41,8 +41,8 @@ public class GrpcServiceTest {
 
         streamObserverMock = Mockito.mock(StreamObserver.class);
         systemUnderTest = new GrpcService(
-                cacheBuilderMock,
-                recsysBuilderMock
+                () -> cacheBuilderMock,
+                () -> recsysBuilderMock
         );
     }
 

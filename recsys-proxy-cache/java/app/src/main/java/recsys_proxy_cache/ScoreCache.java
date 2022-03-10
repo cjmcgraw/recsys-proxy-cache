@@ -52,9 +52,8 @@ public class ScoreCache {
     }
 
     final private byte[] hashedContext;
-    private ScoreCache(String modelName, String modelVersion, Context context) {
+    private ScoreCache(String modelName, Context context) {
         var nameBytes = modelName.getBytes(StandardCharsets.US_ASCII);
-        var versionBytes = modelVersion.getBytes(StandardCharsets.US_ASCII);
         var contextBytes = context.toByteArray();
 
         /*
@@ -73,9 +72,8 @@ public class ScoreCache {
          */
         hashedContext = Hashing
                 .farmHashFingerprint64()
-                .newHasher(nameBytes.length + versionBytes.length + contextBytes.length)
+                .newHasher(nameBytes.length + contextBytes.length)
                 .putBytes(nameBytes)
-                .putBytes(versionBytes)
                 .putBytes(contextBytes)
                 .hash()
                 .asBytes();
@@ -179,18 +177,12 @@ public class ScoreCache {
         }
 
         private String modelName;
-        private String modelVersion;
         private Context context;
 
         private Builder() {}
 
         public Builder withModelName(String modelName) {
             this.modelName = modelName;
-            return this;
-        }
-
-        public Builder withModelVersion(String modelVersion) {
-            this.modelVersion = modelVersion;
             return this;
         }
 
@@ -202,7 +194,6 @@ public class ScoreCache {
         public ScoreCache build() {
             return new ScoreCache(
                     modelName,
-                    modelVersion,
                     context
             );
         }

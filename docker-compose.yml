@@ -2,54 +2,58 @@ version: "3.9"
 
 services:
 
-  recsys_1:
+  recsys-1:
     build: ./recsys
     environment:
       GRPC_VERBOSITY: debug
       TCP_USER_TIMEOUT: 250
       MAX_CONNECTION_AGE: 1000
     networks:
-      recsys_static_network:
+      recsys-static-network:
         ipv4_address: "172.21.128.1" 
 
-  recsys_2:
-    build: ./recsys
-    environment:
-      GRPC_VERBOSITY: debug
-      TCP_USER_TIMEOUT: 250
-      MAX_CONNECTION_AGE: 1000
-    networks:
-      recsys_static_network:
-        ipv4_address: "172.21.128.2" 
-
-  recsys_3:
-    build: ./recsys
-    environment:
-      GRPC_VERBOSITY: debug
-      TCP_USER_TIMEOUT: 250
-      MAX_CONNECTION_AGE: 1000
-    networks:
-      recsys_static_network:
-        ipv4_address: "172.21.128.3" 
-
-  lookaside-load-balancer:
-    build: ./lookaside_load_balancer
-    depends_on:
-      - recsys_1
-      - recsys_2
-      - recsys_3
-    networks:
-      recsys_static_network:
-
-  #recsys_proxy_cache:
-  #  build:
-  #    context: ./recsys_proxy_cache/java
+  #recsys_2:
+  #  build: ./recsys
   #  environment:
-  #    RECSYS_PROXY_CACHE_LLB_TARGET: lookaside-load-balancer:80
-  #  depends_on:
-  #    - lookaside-load-balancer
+  #    GRPC_VERBOSITY: debug
+  #    TCP_USER_TIMEOUT: 250
+  #    MAX_CONNECTION_AGE: 1000
   #  networks:
-  #    recsys_static_network:
+  #    recsys-static-network:
+  #      ipv4_address: "172.21.128.2" 
+
+  #recsys_3:
+  #  build: ./recsys
+  #  environment:
+  #    GRPC_VERBOSITY: debug
+  #    TCP_USER_TIMEOUT: 250
+  #    MAX_CONNECTION_AGE: 1000
+  #  networks:
+  #    recsys-static-network:
+  #      ipv4_address: "172.21.128.3" 
+
+  #lookaside-load-balancer:
+  #  build: ./lookaside_load_balancer
+  #  depends_on:
+  #    - recsys_1
+  #    - recsyr_2
+  #    - recsys_3
+  #  networks:
+  #    recsys-static-network:
+
+  recsys-proxy-cache:
+    build:
+      context: ./recsys-proxy-cache/java
+    environment:
+      RECSYS_TARGET: recsys-1:8500
+      JAVA_OPTS: "-XX:+UseShenandoahGC -Xlog:gc+stats -XX:+AlwaysPreTouch -Xlog:async -XX:+UseTransparentHugePages -XX:+UseNUMA -XX:-UseBiasedLocking -XX:+DisableExplicitGC -Xms6G -Xmx6G -agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5005"
+    ports:
+      # debug port
+      - 5005:5005
+    depends_on:
+      - recsys-1
+    networks:
+      recsys-static-network:
 
   tests:
     profiles: [ "docker-compose-run-only" ]
@@ -59,7 +63,7 @@ services:
       - ./tests:/app
 
 networks:
-  recsys_static_network:
+  recsys-static-network:
     ipam:
       config:
         - subnet: 172.21.0.0/16

@@ -85,7 +85,6 @@ public class TestUtils {
         return ScoreRequest
                 .newBuilder()
                 .setModelName(modelName)
-                .setModelVersion(modelVersion)
                 .setContext(context)
                 .addAllItems(getRandomItems(itemsToAdd))
                 .build();

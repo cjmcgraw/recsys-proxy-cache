@@ -2,11 +2,7 @@ package recsys_proxy_cache;
 
 import com.google.common.collect.Maps;
 import org.junit.Assert;
-import org.junit.Before;
 import org.junit.Test;
-import org.mockito.*;
-import org.mockito.internal.creation.MockSettingsImpl;
-import recsys_proxy_cache.protos.*;
 
 import java.util.UUID;
 
@@ -18,7 +14,6 @@ public class ScoreCacheTest {
                 .newBuilder()
                 .withContext(context)
                 .withModelName(UUID.randomUUID().toString())
-                .withModelVersion(UUID.randomUUID().toString())
                 .build();
 
         var randomScores = TestUtils.getRandomScores(5);

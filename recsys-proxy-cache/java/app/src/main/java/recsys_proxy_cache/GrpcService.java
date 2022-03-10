@@ -7,6 +7,7 @@ import io.grpc.StatusException;
 import io.grpc.stub.StreamObserver;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
+import java.util.function.Supplier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import recsys_proxy_cache.protos.RecsysProxyCacheGrpc;
@@ -20,19 +21,19 @@ import java.util.Optional;
 class GrpcService extends RecsysProxyCacheGrpc.RecsysProxyCacheImplBase {
     private static final Logger log = LoggerFactory.getLogger(GrpcService.class);
 
-    private final ScoreCache.Builder scoreCacheBuilder;
-    private final RecsysProxy.Builder recsysProxyBuilder;
+    private final Supplier<ScoreCache.Builder> scoreCacheBuilder;
+    private final Supplier<RecsysProxy.Builder> recsysProxyBuilder;
 
     public GrpcService() {
         this(
-                ScoreCache.Builder.newBuilder(),
-                RecsysProxy.Builder.newBuilder()
+                ScoreCache.Builder::newBuilder,
+                RecsysProxy.Builder::newBuilder
         );
     }
 
     GrpcService(
-        ScoreCache.Builder scoreCacheBuilder,
-        RecsysProxy.Builder recsysProxyBuilder) {
+        Supplier<ScoreCache.Builder> scoreCacheBuilder,
+        Supplier<RecsysProxy.Builder> recsysProxyBuilder) {
         this.recsysProxyBuilder = recsysProxyBuilder;
         this.scoreCacheBuilder = scoreCacheBuilder;
     }
@@ -54,15 +55,13 @@ class GrpcService extends RecsysProxyCacheGrpc.RecsysProxyCacheImplBase {
                    .asException();
         }
         var items = Sets.newHashSet(request.getItemsList());
-        var scoreCache = scoreCacheBuilder
+        var scoreCache = scoreCacheBuilder.get()
                 .withModelName(request.getModelName())
-                .withModelVersion(request.getModelVersion())
                 .withContext(request.getContext())
                 .build();
 
-        var recsysProxy = recsysProxyBuilder
+        var recsysProxy = recsysProxyBuilder.get()
                 .withModelName(request.getModelName())
-                .withModelVersion(request.getModelVersion())
                 .withContext(request.getContext())
                 .build();
 
@@ -112,10 +111,5 @@ class GrpcService extends RecsysProxyCacheGrpc.RecsysProxyCacheImplBase {
         responseObserver.onCompleted();
 
         newScores.ifPresent(scoreCache::setScores);
-    }
-
-
-    static class HttpRequestNameResolver {
-        // TODO: implement name resolver for look-aside load balancer
     }
 }

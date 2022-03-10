@@ -14,13 +14,12 @@ log.info(f"tensorflow version: {tf.__version__}")
 
 if __name__ == '__main__':
     valid_context_keys = [
-        "key1",
-        "key2",
-        "key3",
-        "key4",
+        "country",
+        "language",
+        "site",
     ]
 
-    item_id = tf.keras.Input(shape=(None,), dtype=tf.string, name="item_id")
+    item_id = tf.keras.Input(shape=(None, 1), dtype=tf.int64, name="item_id")
     context_values = [
         tf.keras.Input(shape=(None,), dtype=tf.string, name=k)
         for k in valid_context_keys
@@ -28,15 +27,14 @@ if __name__ == '__main__':
 
     flattened_context_keys = tf.concat(context_values, axis=0)
     context_lengths = tf.strings.length(flattened_context_keys)
-    total_context_characters = tf.reduce_sum(context_lengths)
+    total_context_characters = tf.cast(tf.reduce_sum(context_lengths), tf.int64)
 
     reshaped_item_id = tf.reshape(item_id, (-1, 1))
-    item_id_lengths = tf.strings.length(reshaped_item_id)
 
 
-    total_lengths = item_id_lengths + total_context_characters
+    total_lengths = reshaped_item_id + total_context_characters
 
-    multiplied_ids = math.pi * tf.cast(total_lengths, tf.float32)
+    multiplied_ids = math.pi * tf.cast(total_lengths, tf.float64)
     scores = tf.reshape(multiplied_ids, (-1,))
 
     model = tf.keras.Model(
@@ -47,16 +45,17 @@ if __name__ == '__main__':
         outputs=scores
     )
 
-    known_keys = ["item_id"] + valid_context_keys
-
     input_signature = {
-        k: tf.TensorSpec(shape=(None,), dtype=tf.string, name=k)
-        for k in known_keys
+        "item_id": tf.TensorSpec(shape=(None, 1), dtype=tf.int64, name="item_id"),
+        **{
+            k: tf.TensorSpec(shape=(None,), dtype=tf.string, name=k)
+            for k in valid_context_keys
+        }
     }
 
     @tf.function(input_signature=[input_signature])
     def serving_fn(inputs: Dict[str, tf.Tensor]):
-        return {"scores": model([inputs[k] for k in known_keys])}
+        return {"scores": model(inputs)}
 
     model.save(
         "model_dir",

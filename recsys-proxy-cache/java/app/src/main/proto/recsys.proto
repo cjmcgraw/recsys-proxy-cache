@@ -25,7 +25,6 @@ message ScoreRequest {
     repeated int64 items = 1;
     Context context = 2;
     string modelName = 3;
-    string modelVersion = 4;
 }
 
 message ScoreResponse {

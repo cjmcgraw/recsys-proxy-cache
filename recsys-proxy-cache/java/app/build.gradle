@@ -24,6 +24,7 @@ def protocVersion = protobufVersion
 dependencies {
     compileOnly "org.apache.tomcat:annotations-api:6.0.53"
 
+    implementation 'org.apache.commons:commons-lang3:3.0'
     implementation 'org.slf4j:slf4j-api:1.7.30'
     implementation 'org.slf4j:slf4j-simple:1.7.30'
 
@@ -42,6 +43,7 @@ dependencies {
     testImplementation "io.grpc:grpc-testing:${grpcVersion}"
     testImplementation "junit:junit:4.13.2"
     testImplementation "org.mockito:mockito-core:3.+"
+    testImplementation "org.mockito:mockito-inline:3.+"
 }
 
 protobuf {

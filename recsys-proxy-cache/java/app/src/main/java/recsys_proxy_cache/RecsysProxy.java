@@ -1,14 +1,16 @@
 package recsys_proxy_cache;
 
-import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Streams;
+import io.grpc.Codec;
+import io.grpc.Deadline;
 import io.grpc.EquivalentAddressGroup;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import io.grpc.NameResolver;
 import io.grpc.Status;
 import io.grpc.StatusException;
+import io.grpc.StatusRuntimeException;
 import java.util.AbstractMap;
 import java.util.AbstractMap.SimpleImmutableEntry;
 import java.util.HashSet;
@@ -26,11 +28,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.tensorflow.framework.DataType;
 import org.tensorflow.framework.TensorProto;
-import org.tensorflow.framework.TensorProtoOrBuilder;
 import org.tensorflow.framework.TensorShapeProto;
 import org.tensorflow.framework.TensorShapeProto.Dim;
 import recsys_proxy_cache.protos.Context;
-import recsys_proxy_cache.protos.Values;
 import tensorflow.serving.Model;
 import tensorflow.serving.Predict.PredictRequest;
 import tensorflow.serving.PredictionServiceGrpc;
@@ -48,42 +48,56 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.util.function.Function;
+import tensorflow.serving.PredictionServiceGrpc.PredictionServiceFutureStub;
 
 public class RecsysProxy {
-    private static final String LOOKASIDE_LOAD_BALANCER_TARGET = System.getenv("RECSYS_PROXY_CACHE_LLB_TARGET");
+    private static final String TARGET = System.getenv("RECSYS_TARGET");
     private static final RandomGenerator random = RandomGenerator.getDefault();
     private static final ExecutorService CHANNEL_THREADPOOL = Executors.newCachedThreadPool();
     private static final ExecutorService RPC_THREADPOOL = Executors.newCachedThreadPool();
+    private static final ScheduledExecutorService REFRESH_EXECUTOR = Executors.newSingleThreadScheduledExecutor();
     private static final Logger log = LoggerFactory.getLogger(RecsysProxy.class.getName());
     private static ManagedChannel CHANNEL;
     private static PredictionServiceGrpc.PredictionServiceFutureStub TFSERVING_STUB;
 
     private static PredictionServiceGrpc.PredictionServiceFutureStub getPredictionStub() {
-        if (TFSERVING_STUB != null && !CHANNEL.isShutdown()) {
+        if (TFSERVING_STUB != null && !CHANNEL.isShutdown() && !CHANNEL.isTerminated()) {
             return TFSERVING_STUB;
         }
 
+        if (TARGET == null || TARGET.length() <= 0) {
+            log.error("invalid RECSYS_TAGET found/given. Please ensure target is set correctly in envvars");
+            throw new StatusRuntimeException(
+                    Status.INTERNAL
+            );
+        }
+
+        log.warn("setting up new channel for target={}", TARGET);
         CHANNEL = ManagedChannelBuilder
-                .forTarget(LOOKASIDE_LOAD_BALANCER_TARGET)
+                .forTarget(TARGET)
                 .usePlaintext()
                 .executor(CHANNEL_THREADPOOL)
                 .enableFullStreamDecompression()
-                .offloadExecutor(RPC_THREADPOOL)
                 .build();
 
+        var state = CHANNEL.getState(true);
+        log.info("channel state={}", state);
         TFSERVING_STUB = PredictionServiceGrpc
-                .newFutureStub(CHANNEL);
+                .newFutureStub(CHANNEL)
+                .withExecutor(RPC_THREADPOOL)
+                .withCompression("gzip")
+                .withWaitForReady();
         return TFSERVING_STUB;
     }
 
     private final String modelName;
-    private final String modelVersion;
     private final Context mlModelContext;
+    private final PredictionServiceFutureStub predictStub;
 
-    private RecsysProxy(String modelName, String modelVersion, Context mlModelContext) {
+    private RecsysProxy(String modelName, Context mlModelContext, PredictionServiceFutureStub predictStub) {
         this.modelName = modelName;
-        this.modelVersion = modelVersion;
         this.mlModelContext = mlModelContext;
+        this.predictStub = predictStub;
     }
 
     public Map<Long, Double> score(Collection<Long> items) throws StatusException, ExecutionException, InterruptedException, TimeoutException {
@@ -97,7 +111,6 @@ public class RecsysProxy {
         var tfServingModelSpec = Model.ModelSpec
                 .newBuilder()
                 .setName(modelName)
-                .setVersionLabel(modelVersion)
                 .build();
 
         var predictRequestBuilder = PredictRequest.newBuilder()
@@ -140,8 +153,10 @@ public class RecsysProxy {
             );
         }
 
-        var fut = getPredictionStub().predict(predictRequestBuilder.build());
-        var response = fut.get(250, TimeUnit.MILLISECONDS);
+        var fut = predictStub
+                .withDeadlineAfter(150, TimeUnit.MILLISECONDS)
+                .predict(predictRequestBuilder.build());
+        var response = fut.get(150, TimeUnit.MILLISECONDS);
 
         var scores = response.getOutputsMap().get("scores") .getDoubleValList();
         var itemsToScores = Streams.zip(
@@ -179,11 +194,13 @@ public class RecsysProxy {
      * apache beam
      */
     static class Builder {
-        public static Builder newBuilder() { return new Builder(); }
+        public static Builder newBuilder() {
+            return new Builder();
+        }
 
         private String modelName;
-        private String modelVersion;
         private recsys_proxy_cache.protos.Context modelContext;
+        private PredictionServiceFutureStub stub;
         private Builder() {}
 
         public Builder withModelName(String modelName) {
@@ -191,20 +208,24 @@ public class RecsysProxy {
             return this;
         }
 
-        public Builder withModelVersion(String modelVersion) {
-            this.modelVersion = modelVersion;
-            return this;
-        }
         public Builder withContext(Context modelContext) {
             this.modelContext = modelContext;
             return this;
         }
 
+        public Builder withStub(PredictionServiceFutureStub stub) {
+            this.stub = stub;
+            return this;
+        }
+
         public RecsysProxy build() {
+            if (stub == null) {
+                stub = getPredictionStub();
+            }
             return new RecsysProxy(
                     modelName,
-                    modelVersion,
-                    modelContext
+                    modelContext,
+                    stub
             );
         }
     }
