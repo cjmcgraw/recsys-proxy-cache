@@ -2,48 +2,55 @@
 # sources: recsys.proto
 # plugin: python-betterproto
 from dataclasses import dataclass
-from typing import List, Optional
+from typing import Dict, List, Optional
 
 import betterproto
-import grpclib
 
 
 @dataclass
-class Field(betterproto.Message):
-    value: str = betterproto.string_field(1)
-    name: str = betterproto.string_field(2)
-
-
-@dataclass
-class Item(betterproto.Message):
-    fields: List["Field"] = betterproto.message_field(1)
+class Values(betterproto.Message):
+    values: List[str] = betterproto.string_field(1)
 
 
 @dataclass
 class Context(betterproto.Message):
-    fields: List["Field"] = betterproto.message_field(1)
+    fields: Dict[str, "Values"] = betterproto.map_field(
+        1, betterproto.TYPE_STRING, betterproto.TYPE_MESSAGE
+    )
 
 
 @dataclass
 class ScoreRequest(betterproto.Message):
-    items: List["Item"] = betterproto.message_field(1)
+    # request will correspond to exactly 1 value in the output scores
+    items: List[int] = betterproto.int64_field(1)
     context: "Context" = betterproto.message_field(2)
+    model_name: str = betterproto.string_field(3)
 
 
 @dataclass
 class ScoreResponse(betterproto.Message):
+    # exactly same size as input items
     scores: List[float] = betterproto.double_field(1)
 
 
 class RecsysProxyCacheStub(betterproto.ServiceStub):
     async def get_scores(
-        self, *, items: List["Item"] = [], context: Optional["Context"] = None
+        self,
+        *,
+        items: List[int] = [],
+        context: Optional["Context"] = None,
+        model_name: str = "",
     ) -> ScoreResponse:
+        """
+        *Get scores retrieves a score for every item given,from the associated
+        context
+        """
+
         request = ScoreRequest()
-        if items is not None:
-            request.items = items
+        request.items = items
         if context is not None:
             request.context = context
+        request.model_name = model_name
 
         return await self._unary_unary(
             "/recsys.RecsysProxyCache/GetScores",
