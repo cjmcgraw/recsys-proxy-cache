@@ -2,11 +2,7 @@ from uuid import uuid4 as uuid
 import random
 import os
 
-import grpc
 from .proto import recsys
-
-
-TARGET = os.environ['RECSYS_PROXY_CACHE_TARGET']
 
 
 def get_random_items(n: int = 10) -> list[int]:
@@ -25,8 +21,3 @@ def get_random_context(fields: int = 10) -> recsys.Context:
             "language": random_values()
         }
     )
-
-
-def get_stub() -> recsys.RecsysProxyCacheStub:
-    channel = grpc.insecure_channel(TARGET)
-    return recsys.RecsysProxyCacheStub(channel)

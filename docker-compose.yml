@@ -50,6 +50,7 @@ services:
     ports:
       # debug port
       - 5005:5005
+      - 50051:50051
     depends_on:
       - recsys-1
     networks:
@@ -59,8 +60,12 @@ services:
     profiles: [ "docker-compose-run-only" ]
     build:
       context: ./tests
+    environment:
+      RECSYS_PROXY_CACHE_TARGET: "recsys-proxy-cache:50051"
     volumes:
       - ./tests:/app
+    networks:
+      recsys-static-network:
 
 networks:
   recsys-static-network:

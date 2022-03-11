@@ -12,6 +12,7 @@ COPY requirements.txt .
 RUN --mount=type=cache,target=/pip_cache \
     pip install --cache-dir /pip_cache -r requirements.txt
 
+COPY pyproject.toml .
 COPY recsys.proto .
 COPY src/ ./src
 COPY generate-python-from-protobuf.sh .

@@ -9,4 +9,5 @@ RUN python build_model.py
 FROM tensorflow/serving:2.8.0 as release
 RUN mkdir -p /models/recsys
 COPY --from=builder /build/model_dir/* /models/recsys/1
+EXPOSE 8501
 ENV MODEL_NAME recsys

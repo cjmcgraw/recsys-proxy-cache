@@ -17,4 +17,6 @@ ENV LD_PRELOAD /usr/lib/x86_64-linux-gnu/libtcmalloc_minimal.so.4.5.6
 WORKDIR /app
 COPY --from=builder /build/app/build/distributions/app.tar .
 RUN tar -xf app.tar && rm app.tar && mv app/* . && rm -rf app && tree /app
+
+EXPOSE 50051
 ENTRYPOINT ["/app/bin/recsys-proxy-cache"]
