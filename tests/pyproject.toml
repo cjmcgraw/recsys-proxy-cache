@@ -1,6 +1,6 @@
 [tool.pytest.ini_options]
 minversion = "6.0"
-addopts = "-ra -q"
+addopts = "--verbose"
 asyncio_mode = "auto"
 testpaths = [
     "src",

@@ -1,4 +1,4 @@
-from uuid import uuid4 as uuid
+import asyncio
 import random
 
 from . import utils
@@ -45,18 +45,47 @@ async def test_multiple_calls_are_idempotent(predict_stub):
         prev = curr
 
 
+async def test_different_context_yields_different_scores(predict_stub):
+    items = utils.get_random_items(500)
+
+    request1 = await predict_stub.get_scores(
+        model_name="recsys",
+        context=utils.get_random_context(10),
+        items=items,
+    )
+
+    request2 = await predict_stub.get_scores(
+        model_name="recsys",
+        context=utils.get_random_context(100),
+        items=items
+    )
+
+    assert request1.scores != request2.scores, f"""
+    Expected request1 to have different scores than request2
+    because the contexts are different
+    
+    request1={request1}
+    request2={request2}
+    """
+
+
 async def test_same_itemids_are_idempontent(predict_stub):
     context = utils.get_random_context(100)
-    items = utils.get_random_items(random.randint(1, 250))
-    all_scores = dict()
-    for _ in range(25):
-        sample = random.sample(items, k=5)
-        response = await predict_stub.get_scores(
-            items=sample,
+    items = utils.get_random_items(random.randint(100, 250))
+
+    def send_new_request(data):
+        return predict_stub.get_scores(
+            items=data,
             context=context,
             model_name="recsys",
         )
 
+    samples = [random.sample(items, k=25) for _ in range(100)]
+    requests = [send_new_request(s) for s in samples]
+    responses = await asyncio.gather(*requests, return_exceptions=False)
+
+    all_scores = dict()
+    for sample, response in zip(samples, responses):
         for item, score in zip(sample, response.scores):
             all_scores.setdefault(item, set())
             all_scores[item].add(score)

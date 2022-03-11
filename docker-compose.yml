@@ -65,6 +65,8 @@ services:
       - ./tests:/app
     networks:
       recsys-static-network:
+    depends_on:
+      recsys-proxy-cache
 
 networks:
   recsys-static-network:
