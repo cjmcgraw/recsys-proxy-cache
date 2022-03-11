@@ -10,7 +10,6 @@ services:
       MAX_CONNECTION_AGE: 1000
     networks:
       recsys-static-network:
-        ipv4_address: "172.21.128.1" 
 
   #recsys_2:
   #  build: ./recsys
