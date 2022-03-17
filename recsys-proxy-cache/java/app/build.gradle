@@ -35,9 +35,8 @@ dependencies {
     implementation 'com.github.ben-manes.caffeine:guava:3.0.5'
     implementation 'com.github.ben-manes.caffeine:jcache:3.0.5'
 
-    // examples/advanced need this for JsonFormat
+    implementation "com.jsoniter:jsoniter:0.9.15"
     implementation "com.google.protobuf:protobuf-java-util:${protobufVersion}"
-
     runtimeOnly "io.grpc:grpc-netty-shaded:${grpcVersion}"
 
     testImplementation "io.grpc:grpc-testing:${grpcVersion}"

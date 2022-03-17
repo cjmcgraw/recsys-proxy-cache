@@ -17,6 +17,7 @@ if __name__ == '__main__':
         "country",
         "language",
         "site",
+        "session",
     ]
 
     item_id = tf.keras.Input(shape=(None, 1), dtype=tf.int64, name="item_id")

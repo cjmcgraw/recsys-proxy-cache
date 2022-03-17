@@ -2,6 +2,7 @@ FROM gradle:7.4-jdk17 as builder
 WORKDIR /build
 COPY app/src app/src
 COPY app/build.gradle app/build.gradle
+COPY app/gradle.properties app/gradle.properties
 COPY settings.gradle .
 COPY gradlew .
 COPY gradle/ gradle/

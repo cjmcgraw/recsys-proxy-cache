@@ -30,6 +30,7 @@ import java.util.concurrent.TimeoutException;
 import java.util.function.Supplier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import recsys_proxy_cache.cache.ScoreCache;
 import recsys_proxy_cache.protos.RecsysProxyCacheGrpc;
 import recsys_proxy_cache.protos.ScoreRequest;
 import recsys_proxy_cache.protos.ScoreResponse;
