@@ -73,6 +73,11 @@ task appServer(type: CreateStartScripts) {
     classpath = startScripts.classpath
 }
 
+task generateCollisionHashes(type: JavaExec) {
+    mainClass = "GenerateCollidingHashKeysForTests"
+    classpath = sourceSets.main.runtimeClasspath
+}
+
 applicationDistribution.into('bin') {
     from(appServer)
     fileMode = 0755
