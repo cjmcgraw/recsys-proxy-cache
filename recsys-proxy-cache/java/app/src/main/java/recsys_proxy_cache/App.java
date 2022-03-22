@@ -24,7 +24,9 @@ import io.grpc.Server;
 import io.grpc.ServerBuilder;
 import java.io.IOException;
 import java.util.concurrent.TimeUnit;
-import java.util.logging.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import recsys_proxy_cache.cache.ScoreCache;
 
 /**
  * Server that manages startup/shutdown of a {@code Greeter} server.
@@ -39,26 +41,28 @@ public class App {
         applicationServer.blockUntilShutdown();
     }
 
-    private static final Logger logger = Logger.getLogger(App.class.getName());
+    private static final Logger log = LoggerFactory.getLogger(App.class);
     private Server server;
 
     private void start() throws IOException {
+        log.info("server starting up");
         int port = 50051;
         server = ServerBuilder
                 .forPort(port)
                 .addService(new GrpcService())
                 .build()
                 .start();
-        logger.info("Server started, listening on " + port);
+        log.info("Server started, listening on " + port);
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-            System.err.println("*** shutting down gRPC server since JVM is shutting down");
+            log.warn("starting shutdown process");
             try {
                 App.this.stop();
                 ScoreCache.shutdown();
             } catch (InterruptedException e) {
+                log.error("exception thrown during shutdown", e);
                 e.printStackTrace(System.err);
             }
-            System.err.println("*** server shut down");
+            log.info("successfully shutdown server");
         }));
     }
 

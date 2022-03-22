@@ -27,6 +27,7 @@ import org.junit.Before;
 import org.junit.Test;
 import org.mockito.*;
 import org.mockito.internal.creation.MockSettingsImpl;
+import recsys_proxy_cache.cache.ScoreCache;
 import recsys_proxy_cache.protos.*;
 
 import java.util.Random;

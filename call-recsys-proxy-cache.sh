@@ -10,10 +10,13 @@ json=$(cat << JSON_DATA
                 "values": ["US", "CA", "MX"]
             },
             "language": {
-                "values": ["english", "french", "spanish", "$rand"]
+                "values": ["english", "french", "spanish"]
             },
             "site": {
                 "values": ["some-test-site.com", "some-other-site.ca", "other-site.mx"]
+            },
+            "session": {
+                "values": ["$rand"]
             }
         }
     },

@@ -1,0 +1,7 @@
+[
+  {
+    "key": "session",
+    "hashFunction": "farmfingerprint64",
+    "buckets": 1000
+  }
+]
