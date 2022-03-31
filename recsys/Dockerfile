@@ -1,7 +1,7 @@
 FROM python:3.10 as builder
 WORKDIR /build
 ADD requirements.txt .
-RUN --mount=type=cache,target=/root/.cache/pip \
+RUN \
     pip install --cache-dir /root/.cache/pip -r requirements.txt
 ADD build_model.py .
 RUN python build_model.py
