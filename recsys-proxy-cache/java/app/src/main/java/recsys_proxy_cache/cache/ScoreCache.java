@@ -18,7 +18,7 @@
  * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-package recsys_proxy_cache;
+package recsys_proxy_cache.cache;
 
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.github.benmanes.caffeine.cache.Scheduler;
@@ -26,8 +26,12 @@ import com.google.common.collect.Maps;
 import com.google.common.hash.Hashing;
 import com.google.common.primitives.Bytes;
 import com.github.benmanes.caffeine.cache.Cache;
+import com.google.common.primitives.Ints;
 import com.google.common.primitives.Longs;
+import java.io.ByteArrayOutputStream;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.Collections;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import recsys_proxy_cache.protos.Context;
@@ -65,16 +69,18 @@ public class ScoreCache {
     );
 
 
-    static void shutdown() {
+    public static void shutdown() {
         log.warn("shutting down cache gracefully");
         queue.clear();
         insertExecutor.shutdown();
     }
 
     final private byte[] hashedContext;
+
     private ScoreCache(String modelName, Context context) {
         var nameBytes = modelName.getBytes(StandardCharsets.US_ASCII);
-        var contextBytes = context.toByteArray();
+        // context bytes are surprisingly complex to parse, check the function
+        var contextBytes = getContextBytes(context);
 
         /*
          * Using farmfingerprint64 because its non-cryptographic and generally
@@ -90,6 +96,7 @@ public class ScoreCache {
          * But we also need to balance this against speed and memory
          * usage in the cache as well.
          */
+
         hashedContext = Hashing
                 .farmHashFingerprint64()
                 .newHasher(nameBytes.length + contextBytes.length)
@@ -108,7 +115,7 @@ public class ScoreCache {
         );
     }
 
-    Map<Long, Double> getScores(Collection<Long> items) {
+    public Map<Long, Double> getScores(Collection<Long> items) {
         var itemLookup = Maps.<ByteBuffer, Long>newHashMapWithExpectedSize(items.size());
         for (var item : items) {
             var key = getHashKey(item);
@@ -125,7 +132,7 @@ public class ScoreCache {
         return scoredItems;
     }
 
-    void setScores(Map<Long, Double> scores) {
+    public void setScores(Map<Long, Double> scores) {
         /*
          * Currently, we are using caffeine for the implementation
          * of this shared internalCache. Caffeine internally uses a
@@ -171,11 +178,64 @@ public class ScoreCache {
                 internalCache.putAll(scoresToInsert);
             });
         } catch (RejectedExecutionException exception) {
-            log.error(exception.getMessage());
             log.warn("cache insert has exceeded maximum queue size! Ignoring cache insert/update temporarily");
+            log.error("failed to insert set scores into queue. queue probably full", exception);
             // silent failure
         }
     }
+
+    /**
+     * Retrieves the bytes from the context, handling all sub-rules for context key/value
+     * pairs.
+     *
+     * This gets a bit complicated because of the existence of HighCardinalityKeys.
+     *
+     * In short, some key terms in context, like "session" which is a random string
+     * generated for each unique visit causes our cache to have a near 100% miss rate.
+     * To handle this we will transform the values into something that is lower cardinality.
+     *
+     * The specifics of which will be pushed out to another class
+     *
+     * @param context the context to process
+     * @return the bytes that represent the context with all processing handled
+     */
+    private byte[] getContextBytes(Context context) {
+        var contextByteStream = new ByteArrayOutputStream(context.getSerializedSize());
+
+        /*
+         * since we are going to process the keys, we must sort them initially to ensure
+         * that there is consistency between key/value byte pairings
+         */
+        var fields = context.getFieldsMap();
+        var keys = new ArrayList<>(fields.keySet());
+        Collections.sort(keys);
+
+        for (var key : keys) {
+            var isHighCardinality = HighCardinalityKeys.isHighCardinality(key);
+            var keyBytes = key.getBytes(StandardCharsets.US_ASCII);
+            contextByteStream.writeBytes(keyBytes);
+
+            // we must sort values, to ensure that the values order is not important
+            var values = new ArrayList<>(fields.get(key).getValuesList());
+            Collections.sort(values);
+
+            for (var value : values) {
+                byte[] valueBytes = value.getBytes(StandardCharsets.US_ASCII);
+                if (isHighCardinality) {
+                    valueBytes = Ints.toByteArray(
+                            HighCardinalityKeys
+                                    .hashHighCardinalityKey(key, valueBytes)
+                                    .intValue()
+                    );
+
+                }
+                contextByteStream.writeBytes(valueBytes);
+            }
+        }
+
+        return contextByteStream.toByteArray();
+    }
+
 
     /**
      * Java inner builder pattern
@@ -191,7 +251,7 @@ public class ScoreCache {
      * implementations and usage from my experience developing some in
      * apache beam
      */
-    static class Builder {
+    public static class Builder {
         public static Builder newBuilder() {
             return new Builder();
         }

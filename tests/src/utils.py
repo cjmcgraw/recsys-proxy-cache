@@ -18,6 +18,7 @@ def get_random_context(fields: int = 10) -> recsys.Context:
         fields={
             "country": random_values(),
             "site": random_values(),
-            "language": random_values()
+            "language": random_values(),
+            "session": random_values(),
         }
     )
