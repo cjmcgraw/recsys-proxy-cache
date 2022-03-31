@@ -25,6 +25,7 @@ import org.junit.Assert;
 import org.junit.Test;
 
 import java.util.UUID;
+import recsys_proxy_cache.cache.ScoreCache;
 
 public class ScoreCacheTest {
     @Test
