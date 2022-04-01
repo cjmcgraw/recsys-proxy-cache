@@ -172,7 +172,7 @@ public class RecsysProxy {
         }
 
         var fut = predictStub
-                .withDeadlineAfter(150, TimeUnit.MILLISECONDS)
+                .withDeadlineAfter(500, TimeUnit.MILLISECONDS)
                 .predict(predictRequestBuilder.build());
         var response = fut.get(150, TimeUnit.MILLISECONDS);
 
