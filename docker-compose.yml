@@ -45,7 +45,8 @@ services:
       context: ./recsys-proxy-cache/java
     environment:
       RECSYS_TARGET: recsys-1:8500
-      JAVA_OPTS: "-XX:+UseShenandoahGC -Xlog:gc+stats -XX:+AlwaysPreTouch -Xlog:async -XX:+UseTransparentHugePages -XX:+UseNUMA -XX:-UseBiasedLocking -XX:+DisableExplicitGC -Xms6G -Xmx6G -agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5005"
+      RECSYS_PROXY_TIMEOUT: 2000 # 2 seconds!!
+      JAVA_OPTS: "-XX:+UseShenandoahGC -Xlog:gc+stats -XX:+AlwaysPreTouch -Xlog:async -XX:+UseTransparentHugePages -XX:+UseNUMA -XX:-UseBiasedLocking -XX:+DisableExplicitGC -Xms512M -Xmx512M -agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5005"
     ports:
       # debug port
       - 5005:5005

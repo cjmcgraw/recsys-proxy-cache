@@ -1,5 +1,6 @@
 import asyncio
 import random
+import time
 
 from . import utils
 from proto import recsys
@@ -99,9 +100,10 @@ async def test_key_collision_matches_outputs(predict_stub):
             context=context,
             items=items
         )
-
-    prev = await send_request(known_colliding_values[0])
-    for v in known_colliding_values[1:]:
+    known_colliding_samples = random.sample(known_colliding_values, 5)
+    prev = await send_request(known_colliding_samples[0])
+    for v in known_colliding_samples[1:]:
+        time.sleep(0.1)
         curr = await send_request(v)
         assert prev.scores == curr.scores, f"""
         Expected known colliding keys to return the same scores.

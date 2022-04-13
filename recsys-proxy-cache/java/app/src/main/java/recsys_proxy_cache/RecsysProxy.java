@@ -50,6 +50,7 @@ import org.tensorflow.framework.TensorShapeProto;
 import org.tensorflow.framework.TensorShapeProto.Dim;
 import recsys_proxy_cache.protos.Context;
 import tensorflow.serving.Model;
+import tensorflow.serving.Predict;
 import tensorflow.serving.Predict.PredictRequest;
 import tensorflow.serving.PredictionServiceGrpc;
 
@@ -69,14 +70,32 @@ import java.util.function.Function;
 import tensorflow.serving.PredictionServiceGrpc.PredictionServiceFutureStub;
 
 public class RecsysProxy {
-    private static final String TARGET = System.getenv("RECSYS_TARGET");
+    private static final Logger log = LoggerFactory.getLogger(RecsysProxy.class.getName());
     private static final RandomGenerator random = RandomGenerator.getDefault();
     private static final ExecutorService CHANNEL_THREADPOOL = Executors.newCachedThreadPool();
     private static final ExecutorService RPC_THREADPOOL = Executors.newCachedThreadPool();
     private static final ScheduledExecutorService REFRESH_EXECUTOR = Executors.newSingleThreadScheduledExecutor();
-    private static final Logger log = LoggerFactory.getLogger(RecsysProxy.class.getName());
+    private static final String TARGET = RecsysProxy.getEnvTarget();
+    private static final int DEADLINE = RecsysProxy.getEnvDeadline();
+
     private static ManagedChannel CHANNEL;
     private static PredictionServiceGrpc.PredictionServiceFutureStub TFSERVING_STUB;
+
+    private static int getEnvDeadline() {
+        var recsysProxyTimeout = System.getenv("RECSYS_PROXY_TIMEOUT");
+        if (recsysProxyTimeout == null) {
+            recsysProxyTimeout = "10";
+        }
+
+        log.warn("using RECSYS_PROXY_TIMEOUT={}", recsysProxyTimeout);
+        return Integer.parseInt(recsysProxyTimeout);
+    }
+
+    private static String getEnvTarget() {
+       var target = System.getenv("RECSYS_TARGET");
+       log.warn("using RECSYS_TARGET={}", target);
+       return target;
+    }
 
     private static PredictionServiceGrpc.PredictionServiceFutureStub getPredictionStub() {
         if (TFSERVING_STUB != null && !CHANNEL.isShutdown() && !CHANNEL.isTerminated()) {
@@ -85,9 +104,9 @@ public class RecsysProxy {
 
         if (TARGET == null || TARGET.length() <= 0) {
             log.error("invalid RECSYS_TAGET found/given. Please ensure target is set correctly in envvars");
-            throw new StatusRuntimeException(
-                    Status.INTERNAL
-            );
+            throw Status.INTERNAL
+                    .withDescription("invalid RECSYS_TARGET found/given! RECSYS_TARGET=" + TARGET)
+                    .asRuntimeException();
         }
 
         log.warn("setting up new channel for target={}", TARGET);
@@ -125,7 +144,7 @@ public class RecsysProxy {
         };
     }
 
-    private Map<Long, Double> getTfServingScores(Collection<Long> items) throws ExecutionException, InterruptedException, TimeoutException {
+    private Map<Long, Double> getTfServingScores(Collection<Long> items) throws StatusException {
         var tfServingModelSpec = Model.ModelSpec
                 .newBuilder()
                 .setName(modelName)
@@ -172,9 +191,30 @@ public class RecsysProxy {
         }
 
         var fut = predictStub
-                .withDeadlineAfter(500, TimeUnit.MILLISECONDS)
+                .withDeadlineAfter(DEADLINE, TimeUnit.MILLISECONDS)
                 .predict(predictRequestBuilder.build());
-        var response = fut.get(150, TimeUnit.MILLISECONDS);
+        Predict.PredictResponse response;
+        try {
+            response = fut.get(DEADLINE, TimeUnit.MILLISECONDS);
+        } catch (TimeoutException exception) {
+            log.error("deadline exceeded in recsysproxy request!", exception);
+            throw Status.DEADLINE_EXCEEDED
+                    .withCause(exception)
+                    .withDescription("deadline exceeded by " + DEADLINE + " ms")
+                    .asException();
+        } catch (InterruptedException exception) {
+            log.error("recsysproxy request interrupted unexpectedly!", exception);
+            throw Status.ABORTED
+                    .withCause(exception)
+                    .withDescription("unexpected interrupt during future processing!")
+                    .asException();
+        } catch (ExecutionException exception) {
+            log.error("recsysproxy request exceution failed for unknown reason!", exception);
+            throw Status.ABORTED
+                    .withCause(exception)
+                    .withDescription("excution of grpc future failed for unknown reason!")
+                    .asException();
+        }
 
         var scores = response.getOutputsMap().get("scores") .getDoubleValList();
         var itemsToScores = Streams.zip(
