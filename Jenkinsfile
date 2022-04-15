@@ -1,21 +1,5 @@
 #!groovy
-@Library('pipeline@3.x') _
 
-String GCLOUD_PROJECT = 'icf-compliance'
-String TEAM_EMAIL = 'recommendations@accretivetg.com'
-String PROJECT_NAME = "recsysproxycache.daemon"
-
-// globally used to capture image during build
-String DOCKER_RELEASE_IMAGE_TAG
-String DOCKER_VM_TEMPLATE_FILE_PATH = './docker-compose-deploy-vm.yml'
-
-class ElasticsearchClusters {
-    final static String INTEG_MAIN = "elasticsearch_search_integ"
-    final static String STAGING_MAIN = "elasticsearch_search_staging"
-    final static String STAGING_BACKUP = "elasticsearch_search_staging2"
-    final static String PRODUCTION_MAIN = "elasticsearch_search_production"
-    final static String PRODUCTION_BACKUP = "elasticsearch_search_production2"
-}
 
 def boolean shouldDeploy() {
     return true
@@ -78,20 +62,7 @@ pipeline {
             steps {
                 script {
                     // atg custom specific build
-                    (image) = buildDockerImage(
-                        dockerContext: "./recsys-proxy-cache/java",
-                        dockerFile: "./recsys-proxy-cache/java/Dockerfile",
-                        target: 'release',
-                        parameters: [
-                            '--pull',
-                        ]
-                    )
-
                     // atg custom specific push
-                    pushToDockerRegistry(
-                        dockerImage: image
-                    )
-                    DOCKER_RELEASE_IMAGE_TAG = image
                 }
             }
         }
@@ -110,25 +81,8 @@ pipeline {
             }
             steps {
                 script {
-                    echo 'Deploy to Integ cluster'
+                    echo 'ATG Deploy to Integ cluster'
                 }
-
-                echo "Replacing env variables inside ${DOCKER_VM_TEMPLATE_FILE_PATH}"
-                sh "envsubst < ${DOCKER_VM_TEMPLATE_FILE_PATH} > tmp.yml && mv tmp.yml ${DOCKER_VM_TEMPLATE_FILE_PATH}"
-
-                pushToTarpit(
-                    filesToCopy: [
-                            "./doggy-hooks",
-                            "./docker-compose-deploy.yml"
-                    ],
-                    osVersionOverride: 'any',
-                    doggyPackage: PROJECT_NAME,
-                )
-                doggyInstall(
-                    systemClass: ElasticsearchClusters.INTEG_MAIN,
-                    doggyPackage: PROJECT_NAME
-                )
-
             }
         }
 
@@ -157,7 +111,7 @@ pipeline {
             }
             steps {
                 script {
-                    echo 'Deploy to production'
+                    echo 'ATG Deploy to production'
                 }
             }
         }
