@@ -56,4 +56,5 @@ class RecsysProxyCacheStub(betterproto.ServiceStub):
             "/recsys.RecsysProxyCache/GetScores",
             request,
             ScoreResponse,
+            timeout=5,
         )

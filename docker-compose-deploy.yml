@@ -1,0 +1,26 @@
+version: '3.5'
+
+services:
+    recsysproxycache.daemon:
+        image: ${DOCKER_RELEASE_IMAGE_TAG}
+        read_only: false
+        environment:
+            RECSYS_TARGET: ${RECSYS_TARGET}
+            RECSYS_PROXY_TIMEOUT: ${RECSYS_DEADLINE}
+            JAVA_OPTS: ${JAVA_OPTS}
+        deploy:
+            resources:
+                limits:
+                    cpus: ${CPU_LIMIT}
+                    memory: ${MEMORY_LIMIT}
+                reservations:
+                    cpus: ${CPU_RESERVED}
+                    memory: ${MEMORY_RESERVED}
+        volumes:
+            - /usr/local/localrw:/usr/local/localrw:rw
+            - type: tmpfs
+              target: /tmp
+
+        ports:
+            - 50051:50051
+

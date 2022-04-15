@@ -9,7 +9,7 @@ RUN apt update -yqq && \
 WORKDIR /app
 
 COPY requirements.txt .
-RUN --mount=type=cache,target=/pip_cache \
+RUN \
     pip install --cache-dir /pip_cache -r requirements.txt
 
 COPY pyproject.toml .

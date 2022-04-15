@@ -3,12 +3,22 @@
 
 String GCLOUD_PROJECT = 'icf-compliance'
 String TEAM_EMAIL = 'recommendations@accretivetg.com'
-String PROJECT_NAME = "recsysproxycachedaemon"
+String PROJECT_NAME = "recsysproxycache.daemon"
 
 // globally used to capture image during build
 String DOCKER_RELEASE_IMAGE_TAG
+String DOCKER_VM_TEMPLATE_FILE_PATH = './docker-compose-deploy-vm.yml'
+
+class ElasticsearchClusters {
+    final static String INTEG_MAIN = "elasticsearch_search_integ"
+    final static String STAGING_MAIN = "elasticsearch_search_staging"
+    final static String STAGING_BACKUP = "elasticsearch_search_staging2"
+    final static String PRODUCTION_MAIN = "elasticsearch_search_production"
+    final static String PRODUCTION_BACKUP = "elasticsearch_search_production2"
+}
 
 def boolean shouldDeploy() {
+    return true
     if (params.FORCE_DEPLOY) {
         return true
     }
@@ -70,6 +80,7 @@ pipeline {
                     // atg custom specific build
                     (image) = buildDockerImage(
                         dockerContext: "./recsys-proxy-cache/java",
+                        dockerFile: "./recsys-proxy-cache/java/Dockerfile",
                         target: 'release',
                         parameters: [
                             '--pull',
@@ -87,15 +98,48 @@ pipeline {
 
         stage('deploy to integ') {
             when { expression { shouldDeploy() }}
+            environment {
+                DOCKER_RELEASE_IMAGE_TAG = "${DOCKER_RELEASE_IMAGE_TAG}"
+                RECSYS_TARGET="recommender.integ.icfsys.com:8500"
+                RECSYS_DEADLINE="5000"
+                JAVA_OPTS="-XX:+UseShenandoahGC -Xlog:gc+stats -XX:+AlwaysPreTouch -Xlog:async -XX:+UseTransparentHugePages -XX:+UseNUMA -XX:-UseBiasedLocking -XX:+DisableExplicitGC -Xms512M -Xmx512M"
+                CPU_LIMIT=3
+                MEMORY_LIMIT="512M"
+                CPU_RESERVED=1
+                MEMORY_RESERVED="512M"
+            }
             steps {
                 script {
-                    echo 'Deploy to Integ Swarm'
+                    echo 'Deploy to Integ cluster'
                 }
+
+                echo "Replacing env variables inside ${DOCKER_VM_TEMPLATE_FILE_PATH}"
+                sh "envsubst < ${DOCKER_VM_TEMPLATE_FILE_PATH} > tmp.yml && mv tmp.yml ${DOCKER_VM_TEMPLATE_FILE_PATH}"
+
+                pushToTarpit(
+                    filesToCopy: [
+                            "./doggy-hooks",
+                            "./docker-compose-deploy.yml"
+                    ],
+                    osVersionOverride: 'any',
+                    doggyPackage: PROJECT_NAME,
+                )
+                doggyInstall(
+                    systemClass: ElasticsearchClusters.INTEG_MAIN,
+                    doggyPackage: PROJECT_NAME
+                )
+
             }
         }
 
         stage('deploy to staging') {
             when { expression { shouldDeploy() }}
+            environment {
+                DOCKER_RELEASE_IMAGE_TAG = "${DOCKER_RELEASE_IMAGE_TAG}"
+                RECSYS_TARGET="recommender.staging.icfsys.com:8500"
+                RECSYS_DEADLINE="5000"
+                JAVA_OPTS="-XX:+UseShenandoahGC -Xlog:gc+stats -XX:+AlwaysPreTouch -Xlog:async -XX:+UseTransparentHugePages -XX:+UseNUMA -XX:-UseBiasedLocking -XX:+DisableExplicitGC -Xms512M -Xmx512M"
+            }
             steps {
                 script {
                     echo 'Deploy to staging'
@@ -105,6 +149,12 @@ pipeline {
 
         stage('deploy to production') {
             when { expression { shouldDeploy() }}
+            environment {
+                DOCKER_RELEASE_IMAGE_TAG = "${DOCKER_RELEASE_IMAGE_TAG}"
+                RECSYS_TARGET="recommender.icfsys.com:8500"
+                RECSYS_DEADLINE="10"
+                JAVA_OPTS="-XX:+UseShenandoahGC -Xlog:gc+stats -XX:+AlwaysPreTouch -Xlog:async -XX:+UseTransparentHugePages -XX:+UseNUMA -XX:-UseBiasedLocking -XX:+DisableExplicitGC -Xms6G -Xmx6G -agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5005"
+            }
             steps {
                 script {
                     echo 'Deploy to production'

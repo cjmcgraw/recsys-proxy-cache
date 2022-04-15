@@ -63,9 +63,17 @@ class GrpcService extends RecsysProxyCacheGrpc.RecsysProxyCacheImplBase {
     public void getScores(ScoreRequest request, StreamObserver<ScoreResponse> responseObserver) {
         try {
             getScoresInner(request, responseObserver);
+        } catch (StatusException exception) {
+            log.error("grpc status exception occurred", exception);
+            responseObserver.onError(exception);
         } catch (Exception exception) {
             log.error("unexpected exception thrown during getScores method", exception);
-            responseObserver.onError(exception);
+            responseObserver.onError(Status
+                    .INTERNAL
+                    .withCause(exception)
+                    .withDescription("unknown exception occurred!")
+                    .asException()
+            );
         }
     }
     private void getScoresInner(ScoreRequest request, StreamObserver<ScoreResponse> responseObserver) throws StatusException, ExecutionException, InterruptedException, TimeoutException {
